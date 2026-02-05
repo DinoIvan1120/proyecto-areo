@@ -200,6 +200,9 @@ function AirportApp() {
   const [isEditingVoucher, setIsEditingVoucher] = useState(false);
   const [editedVoucherData, setEditedVoucherData] = useState(null);
   const [hotelCapacities, setHotelCapacities] = useState({});
+
+  // ✅ AGREGAR ESTE NUEVO ESTADO AQUÍ
+  const [hotelPrices, setHotelPrices] = useState({});
   // AGREGAR estos nuevos estados al inicio (línea ~30 aproximadamente)
   const [multiplePassengers, setMultiplePassengers] = useState([]);
 
@@ -540,11 +543,19 @@ useEffect(() => {
       return;
     }
 
+      // ✅ CALCULAR COSTO DEL HOTEL
+  const hotelCost = calculateHotelCost(
+    parseInt(passengerData.selectedHotel),
+    passengerData.roomSelection
+  );
+
     const newPassenger = {
       id: Date.now(),
       name: passengerData.name,
       pnr: passengerData.pnr,
       email: passengerData.email,
+      selectedHotel: passengerData.selectedHotel, // ✅ AGREGAR
+      hotelCost: hotelCost, // ✅ AGREGAR
       roomSelection: passengerData.roomSelection || {
         simple: 0,
         doble: 0,
@@ -1046,6 +1057,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
         Hotel: voucher.pdfData?.hotel?.name || "N/A",
         Transporte: voucher.pdfData?.transport?.name || "N/A",
         Restaurante: voucher.pdfData?.restaurant?.name || "N/A",
+        "Monto Hotel (S/)": voucher.hotelCost > 0 ? voucher.hotelCost.toFixed(2) : "0.00", // 
         "Lugar Emisión": voucher.pdfData?.emissionPlace || "",
         Estado: "Activo",
       }));
@@ -1108,6 +1120,9 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
       multiplePassengers.forEach((passenger, index) => {
         const correlativo = String(pdfCorrelativo + index).padStart(9, "0");
 
+        // ✅ CALCULAR COSTO PARA ESTE PASAJERO
+  const hotelCost = passenger.hotelCost || 0;
+
         const pdfData = {
           correlativo,
           flightInfo: flightData,
@@ -1126,6 +1141,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
           emissionDate: passengerData.emissionDate,
           emissionPlace: passengerData.emissionPlace,
           roomSelection: passenger.roomSelection,
+          hotelCost: hotelCost, // ✅ AGREGAR
         };
 
         generateRealPDF(pdfData);
@@ -1145,6 +1161,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
             generatedBy: "Juan Pérez Martínez", // Nombre simulado del agente
             createdAt: new Date().toISOString(), // Fecha y hora de creación
             updatedAt: new Date().toISOString(), // Fecha y hora de actualización
+             hotelCost: hotelCost, // ✅ AGREGAR
           },
         ]);
       });
@@ -1246,6 +1263,8 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
       return;
     }
 
+    const hotelCost = passenger.hotelCost || 0;
+
     setIsSendingEmail(true);
 
     setTimeout(() => {
@@ -1292,6 +1311,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
           emissionDate: passengerData.emissionDate,
           emissionPlace: passengerData.emissionPlace,
           roomSelection: passenger.roomSelection,
+            hotelCost: hotelCost, // ✅ AGREGAR
         };
 
         generateRealPDF(pdfData);
@@ -1316,6 +1336,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
             generatedBy: "Juan Pérez Martínez", // Nombre simulado del agente
             createdAt: new Date().toISOString(), // Fecha y hora de creación
             updatedAt: new Date().toISOString(), // Fecha y hora de actualización
+             hotelCost: hotelCost, // ✅ AGREGAR
           },
         ]);
       });
@@ -1431,6 +1452,23 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
     setIsEditingVoucher(false);
     setCurrentView("voucherDetail");
   };
+
+  // ========================================
+// FUNCIÓN PARA CALCULAR COSTO TOTAL DEL HOTEL
+// ========================================
+const calculateHotelCost = (hotelId, roomSelection) => {
+  if (!hotelId || !roomSelection) return 0;
+  
+  const prices = hotelPrices[hotelId] || { simple: 0, doble: 0, matrimonial: 0 };
+  const rooms = roomSelection || { simple: 0, doble: 0, matrimonial: 0 };
+  
+  const totalCost = 
+    (rooms.simple || 0) * (prices.simple || 0) +
+    (rooms.doble || 0) * (prices.doble || 0) +
+    (rooms.matrimonial || 0) * (prices.matrimonial || 0);
+  
+  return totalCost;
+};
 
   // NUEVO: Función para guardar cambios del voucher editado
   const handleSaveVoucherChanges = () => {
@@ -1711,14 +1749,6 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
         !usedResources.restaurants.includes(restaurant.id),
     );
   };
-
-  // Funciones para el LÍDER AEROPORTUARIO: toggle de recursos
-  // const toggleHotelSelection = (hotelId) => {
-  //   const newHotels = enabledResources.hotels.includes(hotelId)
-  //     ? enabledResources.hotels.filter((id) => id !== hotelId)
-  //     : [...enabledResources.hotels, hotelId];
-  //   setEnabledResources({ ...enabledResources, hotels: newHotels });
-  // };
 
   const toggleTransportSelection = (transportId) => {
     const newTransports = enabledResources.transports.includes(transportId)
@@ -2164,14 +2194,14 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                 role: "airportLeader",
                 color: "red",
                 icon: Plane,
-                title: "Líder Aeroportuario",
+                title: "Líder SAASA",
                 desc: "Habilita recursos del día",
               },
               {
                 role: "agent",
                 color: "green",
                 icon: Users,
-                title: "Agente",
+                title: "Agente SAASA",
                 desc: "Registra pasajeros y servicios",
               },
               {
@@ -3121,112 +3151,192 @@ HABILITAR RECURSOS DEL DÍA
                               </div>
 
                               {/* Configuración de Habitaciones */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {/* Habitaciones Simples */}
-                                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                    Habitaciones Simples
-                                  </label>
-                                  <div className="relative">
-                                    <User
-                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                      size={18}
-                                    />
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max="999"
-                                      value={capacity.simple || ""}
-                                      onChange={(e) => {
-                                        const newCapacities = {
-                                          ...hotelCapacities,
-                                          [id]: {
-                                            ...capacity,
-                                            simple:
-                                              parseInt(e.target.value) || 0,
-                                          },
-                                        };
-                                        setHotelCapacities(newCapacities);
-                                      }}
-                                      placeholder="0"
-                                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
-                                    />
-                                  </div>
-                                  <p className="text-xs text-slate-500 mt-2 text-center">
-                                    1 persona por habitación
-                                  </p>
-                                </div>
+                              
+                            {/* Configuración de Habitaciones CON PRECIOS */}
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+  {/* Habitaciones Simples */}
+  <div className="bg-white rounded-lg p-4 border border-slate-200">
+    <label className="block text-sm font-semibold text-slate-700 mb-2">
+      Habitaciones Simples
+    </label>
+    
+    {/* Cantidad */}
+    <div className="relative mb-3">
+      <User
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        size={18}
+      />
+      <input
+        type="number"
+        min="0"
+        max="999"
+        value={capacity.simple || ""}
+        onChange={(e) => {
+          const newCapacities = {
+            ...hotelCapacities,
+            [id]: {
+              ...capacity,
+              simple: parseInt(e.target.value) || 0,
+            },
+          };
+          setHotelCapacities(newCapacities);
+        }}
+        placeholder="Cantidad"
+        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
+      />
+    </div>
+    
+    {/* Precio */}
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-bold">
+        S/
+      </span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={hotelPrices[id]?.simple || ""}
+        onChange={(e) => {
+          const newPrices = {
+            ...hotelPrices,
+            [id]: {
+              ...(hotelPrices[id] || { simple: 0, doble: 0, matrimonial: 0 }),
+              simple: parseFloat(e.target.value) || 0,
+            },
+          };
+          setHotelPrices(newPrices);
+        }}
+        placeholder="Precio"
+        className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold bg-green-50"
+      />
+    </div>
+    <p className="text-xs text-slate-500 mt-2 text-center">
+      1 persona por habitación
+    </p>
+  </div>
 
-                                {/* Habitaciones Dobles */}
-                                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                    Habitaciones Dobles
-                                  </label>
-                                  <div className="relative">
-                                    <Users
-                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                      size={18}
-                                    />
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max="999"
-                                      value={capacity.doble || ""}
-                                      onChange={(e) => {
-                                        const newCapacities = {
-                                          ...hotelCapacities,
-                                          [id]: {
-                                            ...capacity,
-                                            doble:
-                                              parseInt(e.target.value) || 0,
-                                          },
-                                        };
-                                        setHotelCapacities(newCapacities);
-                                      }}
-                                      placeholder="0"
-                                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
-                                    />
-                                  </div>
-                                  <p className="text-xs text-slate-500 mt-2 text-center">
-                                    2 camas individuales
-                                  </p>
-                                </div>
+  {/* Habitaciones Dobles */}
+  <div className="bg-white rounded-lg p-4 border border-slate-200">
+    <label className="block text-sm font-semibold text-slate-700 mb-2">
+      Habitaciones Dobles
+    </label>
+    
+    {/* Cantidad */}
+    <div className="relative mb-3">
+      <Users
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        size={18}
+      />
+      <input
+        type="number"
+        min="0"
+        max="999"
+        value={capacity.doble || ""}
+        onChange={(e) => {
+          const newCapacities = {
+            ...hotelCapacities,
+            [id]: {
+              ...capacity,
+              doble: parseInt(e.target.value) || 0,
+            },
+          };
+          setHotelCapacities(newCapacities);
+        }}
+        placeholder="Cantidad"
+        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
+      />
+    </div>
+    
+    {/* Precio */}
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-bold">
+        S/
+      </span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={hotelPrices[id]?.doble || ""}
+        onChange={(e) => {
+          const newPrices = {
+            ...hotelPrices,
+            [id]: {
+              ...(hotelPrices[id] || { simple: 0, doble: 0, matrimonial: 0 }),
+              doble: parseFloat(e.target.value) || 0,
+            },
+          };
+          setHotelPrices(newPrices);
+        }}
+        placeholder="Precio"
+        className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold bg-green-50"
+      />
+    </div>
+    <p className="text-xs text-slate-500 mt-2 text-center">
+      2 camas individuales
+    </p>
+  </div>
 
-                                {/* Habitaciones Matrimoniales */}
-                                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                    Habitaciones Matrimoniales
-                                  </label>
-                                  <div className="relative">
-                                    <Users
-                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                      size={18}
-                                    />
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max="999"
-                                      value={capacity.matrimonial || ""}
-                                      onChange={(e) => {
-                                        const newCapacities = {
-                                          ...hotelCapacities,
-                                          [id]: {
-                                            ...capacity,
-                                            matrimonial:
-                                              parseInt(e.target.value) || 0,
-                                          },
-                                        };
-                                        setHotelCapacities(newCapacities);
-                                      }}
-                                      placeholder="0"
-                                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
-                                    />
-                                  </div>
-                                  <p className="text-xs text-slate-500 mt-2 text-center">
-                                    1 cama matrimonial
-                                  </p>
-                                </div>
-                              </div>
+  {/* Habitaciones Matrimoniales */}
+  <div className="bg-white rounded-lg p-4 border border-slate-200">
+    <label className="block text-sm font-semibold text-slate-700 mb-2">
+      Habitaciones Matrimoniales
+    </label>
+    
+    {/* Cantidad */}
+    <div className="relative mb-3">
+      <Users
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        size={18}
+      />
+      <input
+        type="number"
+        min="0"
+        max="999"
+        value={capacity.matrimonial || ""}
+        onChange={(e) => {
+          const newCapacities = {
+            ...hotelCapacities,
+            [id]: {
+              ...capacity,
+              matrimonial: parseInt(e.target.value) || 0,
+            },
+          };
+          setHotelCapacities(newCapacities);
+        }}
+        placeholder="Cantidad"
+        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-center font-semibold"
+      />
+    </div>
+    
+    {/* Precio */}
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 font-bold">
+        S/
+      </span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={hotelPrices[id]?.matrimonial || ""}
+        onChange={(e) => {
+          const newPrices = {
+            ...hotelPrices,
+            [id]: {
+              ...(hotelPrices[id] || { simple: 0, doble: 0, matrimonial: 0 }),
+              matrimonial: parseFloat(e.target.value) || 0,
+            },
+          };
+          setHotelPrices(newPrices);
+        }}
+        placeholder="Precio"
+        className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold bg-green-50"
+      />
+    </div>
+    <p className="text-xs text-slate-500 mt-2 text-center">
+      1 cama matrimonial
+    </p>
+  </div>
+</div>
 
                               {/* Resumen Visual */}
                               {/* {totalRooms > 0 && (
@@ -4054,51 +4164,55 @@ HABILITAR RECURSOS DEL DÍA
                       </h4>
                       <div className="space-y-2">
                         {multiplePassengers.map((passenger, index) => (
-                          <div
-                            key={passenger.id}
-                            className="flex items-start justify-between bg-white p-3 rounded-lg border border-blue-200 gap-3"
-                          >
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                {index + 1}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-slate-800">
-                                  {passenger.name}
-                                </p>
-                                <p className="text-xs text-slate-600">
-                                  PNR: {passenger.pnr} | Email:{" "}
-                                  {passenger.email}
-                                  {passenger.roomSelection && (
-                                    <span className="ml-2 text-green-700 font-semibold">
-                                      | Habitaciones:
-                                      {passenger.roomSelection.simple > 0 &&
-                                        ` ${passenger.roomSelection.simple} Simple(s)`}
-                                      {passenger.roomSelection.doble > 0 &&
-                                        ` ${passenger.roomSelection.doble} Doble(s)`}
-                                      {passenger.roomSelection.matrimonial >
-                                        0 &&
-                                        ` ${passenger.roomSelection.matrimonial} Matrimonial(es)`}
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setMultiplePassengers(
-                                  multiplePassengers.filter(
-                                    (p) => p.id !== passenger.id,
-                                  ),
-                                );
-                              }}
-                              className="p-2 hover:bg-red-100 rounded-full transition text-red-600 shrink-0 self-end"
-                              title="Eliminar pasajero"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        ))}
+  <div
+    key={passenger.id}
+    className="flex items-start justify-between bg-white p-3 rounded-lg border border-blue-200 gap-3"
+  >
+    <div className="flex items-start gap-3 flex-1 min-w-0">
+      <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+        {index + 1}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-slate-800">
+          {passenger.name}
+        </p>
+        <p className="text-xs text-slate-600">
+          PNR: {passenger.pnr} | Email: {passenger.email}
+          {passenger.roomSelection && (
+            <span className="ml-2 text-green-700 font-semibold">
+              | Habitaciones:
+              {passenger.roomSelection.simple > 0 &&
+                ` ${passenger.roomSelection.simple} Simple(s)`}
+              {passenger.roomSelection.doble > 0 &&
+                ` ${passenger.roomSelection.doble} Doble(s)`}
+              {passenger.roomSelection.matrimonial > 0 &&
+                ` ${passenger.roomSelection.matrimonial} Matrimonial(es)`}
+            </span>
+          )}
+        </p>
+        {/* ✅ MOSTRAR COSTO */}
+        {passenger.hotelCost > 0 && (
+          <p className="text-xs mt-1">
+            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded font-bold">
+              Costo Hotel: S/ {passenger.hotelCost.toFixed(2)}
+            </span>
+          </p>
+        )}
+      </div>
+    </div>
+    <button
+      onClick={() => {
+        setMultiplePassengers(
+          multiplePassengers.filter((p) => p.id !== passenger.id)
+        );
+      }}
+      className="p-2 hover:bg-red-100 rounded-full transition text-red-600 shrink-0 self-end"
+      title="Eliminar pasajero"
+    >
+      <X size={18} />
+    </button>
+  </div>
+))}
                       </div>
                     </div>
                   )}
@@ -4996,6 +5110,10 @@ HABILITAR RECURSOS DEL DÍA
                             <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">
                               Restaurante
                             </th>
+                            {/* ✅ AGREGAR ESTA COLUMNA */}
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">
+                              Monto Hotel
+                            </th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-purple-900">
                               Estado
                             </th>
@@ -5019,6 +5137,8 @@ HABILITAR RECURSOS DEL DÍA
                               <td className="px-4 py-3 text-sm text-slate-600">
                                 {voucher.pdfData?.passenger?.pnr || "N/A"}
                               </td>
+
+
 
                               {/* ✅ NUEVOS CAMPOS */}
                               <td className="px-4 py-3 text-sm text-slate-600">
@@ -5068,6 +5188,13 @@ HABILITAR RECURSOS DEL DÍA
                               </td>
                               <td className="px-4 py-3 text-sm text-slate-600">
                                 {voucher.pdfData?.restaurant?.name || "N/A"}
+                              </td>
+
+                              {/* ✅ AGREGAR ESTA CELDA */}
+                              <td className="px-4 py-3 text-sm font-bold text-green-700">
+                                {voucher.hotelCost > 0 
+                                  ? `S/ ${voucher.hotelCost.toFixed(2)}` 
+                                  : "S/ 0.00"}
                               </td>
                               <td className="px-4 py-3">
                                 <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
