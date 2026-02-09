@@ -2183,6 +2183,14 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
         snack: false,
         cena: false,
       },
+      // ✅ AGREGAR ESTOS CAMPOS QUE FALTABAN
+    transportSelection: voucher.pdfData.transportSelection || { tipo: "individual" },
+    restaurantServices: voucher.pdfData.restaurantServices || {
+      desayuno: false,
+      almuerzo: false,
+      cena: false,
+    },
+    roomSelection: voucher.pdfData.roomSelection || { simple: 0, doble: 0, matrimonial: 0 }, // ✅ AGREGA
       emissionDate: voucher.pdfData.emissionDate || "",
       emissionPlace: voucher.pdfData.emissionPlace || "",
     });
@@ -2206,20 +2214,40 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
             (r) => r.id === parseInt(editedVoucherData.selectedRestaurant),
           );
 
+          // ✅ Construir pdfData actualizado
+        const updatedPdfData = {
+          ...v.pdfData,
+          passenger: editedVoucherData,
+          hotel: hotelInfo,
+          transport: transportInfo,
+          restaurant: restaurantInfo,
+          hotelServices: editedVoucherData.hotelServices,
+          transportSelection: editedVoucherData.transportSelection,
+          restaurantServices: editedVoucherData.restaurantServices,
+          roomSelection: editedVoucherData.roomSelection, // ✅ AGREGAR
+          emissionDate: editedVoucherData.emissionDate,
+          emissionPlace: editedVoucherData.emissionPlace,
+        };
+
+        // ✅ RECALCULAR COSTOS CON LA NUEVA INFORMACIÓN
+        const updatedCosts = calculateVoucherCosts(updatedPdfData);
+
           return {
             ...v,
             passenger: editedVoucherData.name,
             updatedAt: new Date().toISOString(), // ✅ ACTUALIZAR FECHA DE ACTUALIZACIÓN
-            pdfData: {
-              ...v.pdfData,
-              passenger: editedVoucherData,
-              hotel: hotelInfo,
-              transport: transportInfo,
-              restaurant: restaurantInfo,
-              hotelServices: editedVoucherData.hotelServices,
-              emissionDate: editedVoucherData.emissionDate,
-              emissionPlace: editedVoucherData.emissionPlace,
-            },
+            pdfData: updatedPdfData,
+            costs: updatedCosts, // ✅ ACTUALIZAR COSTOS
+            // pdfData: {
+            //   ...v.pdfData,
+            //   passenger: editedVoucherData,
+            //   hotel: hotelInfo,
+            //   transport: transportInfo,
+            //   restaurant: restaurantInfo,
+            //   hotelServices: editedVoucherData.hotelServices,
+            //   emissionDate: editedVoucherData.emissionDate,
+            //   emissionPlace: editedVoucherData.emissionPlace,
+            // },
           };
         }
         return v;
@@ -3252,12 +3280,29 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                       ))}
                   </select>
                 ) : (
+                  // <input
+                  //   type="text"
+                  //   value={selectedVoucher.pdfData.hotel?.name || "N/A"}
+                  //   disabled
+                  //   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+                  // />
                   <input
-                    type="text"
-                    value={selectedVoucher.pdfData.hotel?.name || "N/A"}
-                    disabled
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
-                  />
+      type="text"
+      value={(() => {
+        // ✅ Verificar si todos los servicios están desactivados
+        const hotelServices = selectedVoucher.pdfData.hotelServices || {};
+        const roomSelection = selectedVoucher.pdfData.roomSelection || {};
+        const hasServices = hotelServices.desayuno || hotelServices.almuerzo || hotelServices.snack || hotelServices.cena;
+        const hasRooms = (roomSelection.simple || 0) + (roomSelection.doble || 0) + (roomSelection.matrimonial || 0) > 0;
+        
+        if (!hasServices && !hasRooms) {
+          return "N/A";
+        }
+        return selectedVoucher.pdfData.hotel?.name || "N/A";
+      })()}
+      disabled
+      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+    />
                 )}
               </div>
 
@@ -3287,12 +3332,25 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                       ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    value={selectedVoucher.pdfData.transport?.name || "N/A"}
-                    disabled
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
-                  />
+                  // <input
+                  //   type="text"
+                  //   value={selectedVoucher.pdfData.transport?.name || "N/A"}
+                  //   disabled
+                  //   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+                  // />
+                   <input
+      type="text"
+      value={(() => {
+        // ✅ Verificar si el transporte tiene tipo seleccionado
+        const transportSelection = selectedVoucher.pdfData.transportSelection;
+        if (!transportSelection || (!transportSelection.tipo)) {
+          return "N/A";
+        }
+        return selectedVoucher.pdfData.transport?.name || "N/A";
+      })()}
+      disabled
+      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+    />
                 )}
               </div>
 
@@ -3322,12 +3380,27 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                       ))}
                   </select>
                 ) : (
+                  // <input
+                  //   type="text"
+                  //   value={selectedVoucher.pdfData.restaurant?.name || "N/A"}
+                  //   disabled
+                  //   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+                  // />
                   <input
-                    type="text"
-                    value={selectedVoucher.pdfData.restaurant?.name || "N/A"}
-                    disabled
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
-                  />
+      type="text"
+      value={(() => {
+        // ✅ Verificar si tiene servicios seleccionados
+        const restaurantServices = selectedVoucher.pdfData.restaurantServices || {};
+        const hasServices = restaurantServices.desayuno || restaurantServices.almuerzo || restaurantServices.cena;
+        
+        if (!hasServices) {
+          return "N/A";
+        }
+        return selectedVoucher.pdfData.restaurant?.name || "N/A";
+      })()}
+      disabled
+      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 font-medium text-sm sm:text-base"
+    />
                 )}
               </div>
 
@@ -3362,7 +3435,219 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
 
             {/* Servicios del hotel (si está en modo edición) */}
             {isEditingVoucher && editedVoucherData.selectedHotel && (
+
+              
+
+
+
+
+
+
+
+
+
+
               <div className="mb-6 p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-200">
+
+                 <h3 className="text-sm font-semibold text-slate-700 mb-3">
+      Cantidad de Habitaciones
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Habitaciones Simples */}
+      <div className="bg-white rounded-lg p-3 border border-slate-200">
+        <label className="block text-xs font-semibold text-slate-700 mb-2">
+          Habitaciones Simples
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.simple || 0;
+              if (currentValue > 0) {
+                setEditedVoucherData({
+                  ...editedVoucherData,
+                  roomSelection: {
+                    ...editedVoucherData.roomSelection,
+                    simple: currentValue - 1,
+                  },
+                });
+              }
+            }}
+            disabled={!editedVoucherData.roomSelection?.simple || editedVoucherData.roomSelection.simple === 0}
+            className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+          >
+            −
+          </button>
+
+          <input
+            type="number"
+            min="0"
+            value={editedVoucherData.roomSelection?.simple || 0}
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  simple: value,
+                },
+              });
+            }}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-center font-semibold"
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.simple || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  simple: currentValue + 1,
+                },
+              });
+            }}
+            className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-bold text-lg transition"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Habitaciones Dobles */}
+      <div className="bg-white rounded-lg p-3 border border-slate-200">
+        <label className="block text-xs font-semibold text-slate-700 mb-2">
+          Habitaciones Dobles
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.doble || 0;
+              if (currentValue > 0) {
+                setEditedVoucherData({
+                  ...editedVoucherData,
+                  roomSelection: {
+                    ...editedVoucherData.roomSelection,
+                    doble: currentValue - 1,
+                  },
+                });
+              }
+            }}
+            disabled={!editedVoucherData.roomSelection?.doble || editedVoucherData.roomSelection.doble === 0}
+            className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+          >
+            −
+          </button>
+
+          <input
+            type="number"
+            min="0"
+            value={editedVoucherData.roomSelection?.doble || 0}
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  doble: value,
+                },
+              });
+            }}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-center font-semibold"
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.doble || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  doble: currentValue + 1,
+                },
+              });
+            }}
+            className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-bold text-lg transition"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Habitaciones Matrimoniales */}
+      <div className="bg-white rounded-lg p-3 border border-slate-200">
+        <label className="block text-xs font-semibold text-slate-700 mb-2">
+          Habitaciones Matrimoniales
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.matrimonial || 0;
+              if (currentValue > 0) {
+                setEditedVoucherData({
+                  ...editedVoucherData,
+                  roomSelection: {
+                    ...editedVoucherData.roomSelection,
+                    matrimonial: currentValue - 1,
+                  },
+                });
+              }
+            }}
+            disabled={!editedVoucherData.roomSelection?.matrimonial || editedVoucherData.roomSelection.matrimonial === 0}
+            className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+          >
+            −
+          </button>
+
+          <input
+            type="number"
+            min="0"
+            value={editedVoucherData.roomSelection?.matrimonial || 0}
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  matrimonial: value,
+                },
+              });
+            }}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-center font-semibold"
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              const currentValue = editedVoucherData.roomSelection?.matrimonial || 0;
+              setEditedVoucherData({
+                ...editedVoucherData,
+                roomSelection: {
+                  ...editedVoucherData.roomSelection,
+                  matrimonial: currentValue + 1,
+                },
+              });
+            }}
+            className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-bold text-lg transition"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+
+
+
+
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">
                   Servicios del Hotel
                 </h3>
@@ -3400,6 +3685,96 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
               </div>
             )}
 
+            {/* ✅ NUEVO: Servicios de Transporte (si está en modo edición) */}
+{isEditingVoucher && editedVoucherData.selectedTransport && (
+  <div className="mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <h3 className="text-sm font-semibold text-slate-700 mb-3">
+      Tipo de Transporte
+    </h3>
+    <div className="grid grid-cols-2 gap-3">
+      <button
+        onClick={() =>
+          setEditedVoucherData({
+            ...editedVoucherData,
+            transportSelection: { tipo: "individual" },
+          })
+        }
+        className={`flex items-center justify-center gap-2 p-3 border-2 rounded-lg transition ${
+          editedVoucherData.transportSelection?.tipo === "individual"
+            ? "border-blue-500 bg-blue-100"
+            : "border-slate-300 bg-white hover:border-blue-400"
+        }`}
+      >
+        {editedVoucherData.transportSelection?.tipo === "individual" ? (
+          <CheckSquare className="w-5 h-5 text-blue-600" />
+        ) : (
+          <Square className="w-5 h-5 text-slate-400" />
+        )}
+        <span className="text-sm font-medium text-slate-700">Individual</span>
+      </button>
+
+      <button
+        onClick={() =>
+          setEditedVoucherData({
+            ...editedVoucherData,
+            transportSelection: { tipo: "grupal" },
+          })
+        }
+        className={`flex items-center justify-center gap-2 p-3 border-2 rounded-lg transition ${
+          editedVoucherData.transportSelection?.tipo === "grupal"
+            ? "border-blue-500 bg-blue-100"
+            : "border-slate-300 bg-white hover:border-blue-400"
+        }`}
+      >
+        {editedVoucherData.transportSelection?.tipo === "grupal" ? (
+          <CheckSquare className="w-5 h-5 text-blue-600" />
+        ) : (
+          <Square className="w-5 h-5 text-slate-400" />
+        )}
+        <span className="text-sm font-medium text-slate-700">Grupal</span>
+      </button>
+    </div>
+  </div>
+)}
+
+{/* ✅ NUEVO: Servicios de Restaurante (si está en modo edición) */}
+{isEditingVoucher && editedVoucherData.selectedRestaurant && (
+  <div className="mb-6 p-3 sm:p-4 bg-orange-50 rounded-lg border border-orange-200">
+    <h3 className="text-sm font-semibold text-slate-700 mb-3">
+      Servicios del Restaurante
+    </h3>
+    <div className="grid md:grid-cols-3 gap-3">
+      {[
+        { key: "desayuno", label: "Desayuno", icon: "☀️" },
+        { key: "almuerzo", label: "Almuerzo", icon: "🌞" },
+        { key: "cena", label: "Cena", icon: "🌙" },
+      ].map(({ key, label, icon }) => (
+        <button
+          key={key}
+          onClick={() =>
+            setEditedVoucherData({
+              ...editedVoucherData,
+              restaurantServices: {
+                ...editedVoucherData.restaurantServices,
+                [key]: !editedVoucherData.restaurantServices[key],
+              },
+            })
+          }
+          className="flex items-center gap-2 p-3 border-2 border-slate-300 rounded-lg hover:border-orange-500 hover:bg-white transition"
+        >
+          {editedVoucherData.restaurantServices?.[key] ? (
+            <CheckSquare className="w-5 h-5 text-orange-600" />
+          ) : (
+            <Square className="w-5 h-5 text-slate-400" />
+          )}
+          <span className="text-lg">{icon}</span>
+          <span className="text-sm font-medium text-slate-700">{label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
             {/* DESGLOSE DE COSTOS */}
 {selectedVoucher.costs && (
   <div className="mb-6 p-4 sm:p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-200">
@@ -3409,66 +3784,74 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
     </h3>
     
     <div className="space-y-4">
-      {/* Hotel */}
-      {selectedVoucher.pdfData.hotel && (
-        <div className="bg-white rounded-lg p-4 border border-purple-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Hotel className="w-5 h-5 text-purple-600" />
-              <span className="font-semibold text-slate-800">Hotel: {selectedVoucher.pdfData.hotel.name}</span>
-            </div>
-            <span className="text-lg font-bold text-green-700">
-              S/ {selectedVoucher.costs.hotelTotal}
-            </span>
-          </div>
-          
-          {/* Desglose de habitaciones */}
-          {selectedVoucher.pdfData.roomSelection && (
-            <div className="space-y-2 text-sm">
-              <p className="font-semibold text-slate-700">Habitaciones:</p>
-              {(() => {
-                const hotel = masterHotels.find(h => h.id === selectedVoucher.pdfData.hotel.id);
-                const roomSelection = selectedVoucher.pdfData.roomSelection;
-                return (
-                  <div className="ml-4 space-y-1">
-                    {roomSelection.simple > 0 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>{roomSelection.simple} × Simple (S/ {hotel?.servicios?.habitaciones?.simple?.precio.toFixed(2)})</span>
-                        <span className="font-semibold">
-                          S/ {(roomSelection.simple * (hotel?.servicios?.habitaciones?.simple?.precio || 0)).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {roomSelection.doble > 0 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>{roomSelection.doble} × Doble (S/ {hotel?.servicios?.habitaciones?.doble?.precio.toFixed(2)})</span>
-                        <span className="font-semibold">
-                          S/ {(roomSelection.doble * (hotel?.servicios?.habitaciones?.doble?.precio || 0)).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {roomSelection.matrimonial > 0 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>{roomSelection.matrimonial} × Matrimonial (S/ {hotel?.servicios?.habitaciones?.matrimonial?.precio.toFixed(2)})</span>
-                        <span className="font-semibold">
-                          S/ {(roomSelection.matrimonial * (hotel?.servicios?.habitaciones?.matrimonial?.precio || 0)).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+      {/* Hotel - SOLO SI TIENE SERVICIOS O HABITACIONES */}
+      {(() => {
+        const hotelServices = selectedVoucher.pdfData.hotelServices || {};
+        const roomSelection = selectedVoucher.pdfData.roomSelection || {};
+        const hasHotelServices = hotelServices.desayuno || hotelServices.almuerzo || hotelServices.snack || hotelServices.cena;
+        const hasRooms = (roomSelection.simple || 0) + (roomSelection.doble || 0) + (roomSelection.matrimonial || 0) > 0;
+        
+        // ✅ Solo mostrar si tiene servicios O habitaciones
+        if (selectedVoucher.pdfData.hotel && (hasHotelServices || hasRooms)) {
+          return (
+            <div className="bg-white rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Hotel className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold text-slate-800">Hotel: {selectedVoucher.pdfData.hotel.name}</span>
+                </div>
+                <span className="text-lg font-bold text-green-700">
+                  S/ {selectedVoucher.costs.hotelTotal}
+                </span>
+              </div>
               
-              {/* Servicios de alimentación */}
-              {selectedVoucher.pdfData.hotelServices && (
-                <>
-                  <p className="font-semibold text-slate-700 mt-3">Servicios de Alimentación:</p>
+              {/* Desglose de habitaciones */}
+              {hasRooms && (
+                <div className="space-y-2 text-sm">
+                  <p className="font-semibold text-slate-700">Habitaciones:</p>
                   {(() => {
                     const hotel = masterHotels.find(h => h.id === selectedVoucher.pdfData.hotel.id);
-                    const services = selectedVoucher.pdfData.hotelServices;
                     return (
                       <div className="ml-4 space-y-1">
-                        {services.desayuno && (
+                        {roomSelection.simple > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{roomSelection.simple} × Simple (S/ {hotel?.servicios?.habitaciones?.simple?.precio.toFixed(2)})</span>
+                            <span className="font-semibold">
+                              S/ {(roomSelection.simple * (hotel?.servicios?.habitaciones?.simple?.precio || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        {roomSelection.doble > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{roomSelection.doble} × Doble (S/ {hotel?.servicios?.habitaciones?.doble?.precio.toFixed(2)})</span>
+                            <span className="font-semibold">
+                              S/ {(roomSelection.doble * (hotel?.servicios?.habitaciones?.doble?.precio || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        {roomSelection.matrimonial > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{roomSelection.matrimonial} × Matrimonial (S/ {hotel?.servicios?.habitaciones?.matrimonial?.precio.toFixed(2)})</span>
+                            <span className="font-semibold">
+                              S/ {(roomSelection.matrimonial * (hotel?.servicios?.habitaciones?.matrimonial?.precio || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              
+              {/* Servicios de alimentación */}
+              {hasHotelServices && (
+                <div className="space-y-2 text-sm mt-3">
+                  <p className="font-semibold text-slate-700">Servicios de Alimentación:</p>
+                  {(() => {
+                    const hotel = masterHotels.find(h => h.id === selectedVoucher.pdfData.hotel.id);
+                    return (
+                      <div className="ml-4 space-y-1">
+                        {hotelServices.desayuno && (
                           <div className="flex justify-between text-slate-600">
                             <span>Desayuno</span>
                             <span className="font-semibold">
@@ -3476,7 +3859,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                             </span>
                           </div>
                         )}
-                        {services.almuerzo && (
+                        {hotelServices.almuerzo && (
                           <div className="flex justify-between text-slate-600">
                             <span>Almuerzo</span>
                             <span className="font-semibold">
@@ -3484,7 +3867,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                             </span>
                           </div>
                         )}
-                        {services.snack && (
+                        {hotelServices.snack && (
                           <div className="flex justify-between text-slate-600">
                             <span>Snack</span>
                             <span className="font-semibold">
@@ -3492,7 +3875,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                             </span>
                           </div>
                         )}
-                        {services.cena && (
+                        {hotelServices.cena && (
                           <div className="flex justify-between text-slate-600">
                             <span>Cena</span>
                             <span className="font-semibold">
@@ -3503,79 +3886,88 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                       </div>
                     );
                   })()}
-                </>
+                </div>
               )}
             </div>
-          )}
+          );
+        }
+        return null;
+      })()}
+
+      {/* Transporte - SOLO SI TIENE TIPO SELECCIONADO */}
+      {selectedVoucher.pdfData.transport && selectedVoucher.pdfData.transportSelection?.tipo && (
+        <div className="bg-white rounded-lg p-4 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Truck className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold text-slate-800">Transporte: {selectedVoucher.pdfData.transport.name}</span>
+            </div>
+            <span className="text-lg font-bold text-blue-700">
+              S/ {selectedVoucher.costs.transportTotal}
+            </span>
+          </div>
+          <p className="text-sm text-slate-600 mt-2 ml-7">
+            {selectedVoucher.pdfData.transportSelection.tipo === "grupal" 
+              ? "Transporte Grupal" 
+              : "Traslado Individual"}
+          </p>
         </div>
       )}
 
-      {/* Transporte */}
-    {selectedVoucher.pdfData.transport && (
-  <div className="bg-white rounded-lg p-4 border border-blue-200">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Truck className="w-5 h-5 text-blue-600" />
-        <span className="font-semibold text-slate-800">Transporte: {selectedVoucher.pdfData.transport.name}</span>
-      </div>
-      <span className="text-lg font-bold text-blue-700">
-        S/ {selectedVoucher.costs.transportTotal}
-      </span>
-    </div>
-    <p className="text-sm text-slate-600 mt-2 ml-7">
-      {selectedVoucher.pdfData.transportSelection?.tipo === "grupal" 
-        ? "Transporte Grupal" 
-        : "Traslado Individual"}
-    </p>
-  </div>
-)}
-
-      {/* Restaurante */}
-      {selectedVoucher.pdfData.restaurant && (
-  <div className="bg-white rounded-lg p-4 border border-orange-200">
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
-        <Utensils className="w-5 h-5 text-orange-600" />
-        <span className="font-semibold text-slate-800">Restaurante: {selectedVoucher.pdfData.restaurant.name}</span>
-      </div>
-      <span className="text-lg font-bold text-orange-700">
-        S/ {selectedVoucher.costs.restaurantTotal}
-      </span>
-    </div>
-    {(() => {
-      const restaurant = masterRestaurants.find(r => r.id === selectedVoucher.pdfData.restaurant.id);
-      const services = selectedVoucher.pdfData.restaurantServices || { desayuno: false, almuerzo: false, cena: false };
-      return (
-        <div className="ml-7 space-y-1 text-sm">
-          {services.desayuno && restaurant?.servicios?.desayuno && (
-            <div className="flex justify-between text-slate-600">
-              <span>☀️ Desayuno</span>
-              <span className="font-semibold">
-                S/ {restaurant.servicios.desayuno.precio.toFixed(2)}
-              </span>
+      {/* Restaurante - SOLO SI TIENE SERVICIOS SELECCIONADOS */}
+      {(() => {
+        const restaurantServices = selectedVoucher.pdfData.restaurantServices || { desayuno: false, almuerzo: false, cena: false };
+        const hasServices = restaurantServices.desayuno || restaurantServices.almuerzo || restaurantServices.cena;
+        
+        // ✅ Solo mostrar si tiene al menos un servicio seleccionado
+        if (selectedVoucher.pdfData.restaurant && hasServices) {
+          return (
+            <div className="bg-white rounded-lg p-4 border border-orange-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Utensils className="w-5 h-5 text-orange-600" />
+                  <span className="font-semibold text-slate-800">Restaurante: {selectedVoucher.pdfData.restaurant.name}</span>
+                </div>
+                <span className="text-lg font-bold text-orange-700">
+                  S/ {selectedVoucher.costs.restaurantTotal}
+                </span>
+              </div>
+              {(() => {
+                const restaurant = masterRestaurants.find(r => r.id === selectedVoucher.pdfData.restaurant.id);
+                return (
+                  <div className="ml-7 space-y-1 text-sm">
+                    {restaurantServices.desayuno && restaurant?.servicios?.desayuno && (
+                      <div className="flex justify-between text-slate-600">
+                        <span>☀️ Desayuno</span>
+                        <span className="font-semibold">
+                          S/ {restaurant.servicios.desayuno.precio.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {restaurantServices.almuerzo && restaurant?.servicios?.almuerzo && (
+                      <div className="flex justify-between text-slate-600">
+                        <span>🌞 Almuerzo</span>
+                        <span className="font-semibold">
+                          S/ {restaurant.servicios.almuerzo.precio.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {restaurantServices.cena && restaurant?.servicios?.cena && (
+                      <div className="flex justify-between text-slate-600">
+                        <span>🌙 Cena</span>
+                        <span className="font-semibold">
+                          S/ {restaurant.servicios.cena.precio.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-          )}
-          {services.almuerzo && restaurant?.servicios?.almuerzo && (
-            <div className="flex justify-between text-slate-600">
-              <span>🌞 Almuerzo</span>
-              <span className="font-semibold">
-                S/ {restaurant.servicios.almuerzo.precio.toFixed(2)}
-              </span>
-            </div>
-          )}
-          {services.cena && restaurant?.servicios?.cena && (
-            <div className="flex justify-between text-slate-600">
-              <span>🌙 Cena</span>
-              <span className="font-semibold">
-                S/ {restaurant.servicios.cena.precio.toFixed(2)}
-              </span>
-            </div>
-          )}
-        </div>
-      );
-    })()}
-  </div>
-)}
+          );
+        }
+        return null;
+      })()}
 
       {/* Total General */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-4 text-white">
@@ -3584,6 +3976,8 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
           <span className="text-2xl font-bold">S/ {selectedVoucher.costs.grandTotal}</span>
         </div>
       </div>
+
+
     </div>
   </div>
 )}
@@ -5372,257 +5766,326 @@ HABILITAR RECURSOS DEL DÍA
                             </div>
 
                             {/* ✅ CAMBIO 6: Selección de tipo y cantidad de habitaciones MEJORADO */}
-                            {passengerData.selectedHotel && (
-                              <div className="mt-4 border-2 border-green-200 rounded-lg p-4 bg-green-50">
-                                <h4 className="text-sm font-semibold text-slate-700 mb-3">
-                                  Seleccionar Tipo y Cantidad de Habitaciones
-                                </h4>
+                            {/* ✅ CAMBIO 6: Selección de tipo y cantidad de habitaciones CON BOTONES */}
+{passengerData.selectedHotel && (
+  <div className="mt-4 border-2 border-green-200 rounded-lg p-4 bg-green-50">
+    <h4 className="text-sm font-semibold text-slate-700 mb-3">
+      Seleccionar Tipo y Cantidad de Habitaciones
+    </h4>
 
-                                {(() => {
-                                  const hotelId = parseInt(
-                                    passengerData.selectedHotel,
-                                  );
-                                  const capacity = hotelCapacities[hotelId] || {
-                                    simple: 0,
-                                    doble: 0,
-                                    matrimonial: 0,
-                                  };
+    {(() => {
+      const hotelId = parseInt(passengerData.selectedHotel);
+      const capacity = hotelCapacities[hotelId] || {
+        simple: 0,
+        doble: 0,
+        matrimonial: 0,
+      };
 
-                                  // ✅ Calcular disponibilidad real usando usedRooms
-                                  const usedGlobal = usedRooms[hotelId] || {
-                                    simple: 0,
-                                    doble: 0,
-                                    matrimonial: 0,
-                                  };
+      const usedGlobal = usedRooms[hotelId] || {
+        simple: 0,
+        doble: 0,
+        matrimonial: 0,
+      };
 
-                                  // ✅ CALCULAR habitaciones ya seleccionadas en pasajeros temporales
-                                  const usedInCurrentPassengers =
-                                    multiplePassengers
-                                      .filter(
-                                        (p) =>
-                                          parseInt(p.selectedHotel) === hotelId,
-                                      )
-                                      .reduce(
-                                        (acc, p) => ({
-                                          simple:
-                                            acc.simple +
-                                            (p.roomSelection?.simple || 0),
-                                          doble:
-                                            acc.doble +
-                                            (p.roomSelection?.doble || 0),
-                                          matrimonial:
-                                            acc.matrimonial +
-                                            (p.roomSelection?.matrimonial || 0),
-                                        }),
-                                        { simple: 0, doble: 0, matrimonial: 0 },
-                                      );
+      const usedInCurrentPassengers = multiplePassengers
+        .filter((p) => parseInt(p.selectedHotel) === hotelId)
+        .reduce(
+          (acc, p) => ({
+            simple: acc.simple + (p.roomSelection?.simple || 0),
+            doble: acc.doble + (p.roomSelection?.doble || 0),
+            matrimonial: acc.matrimonial + (p.roomSelection?.matrimonial || 0),
+          }),
+          { simple: 0, doble: 0, matrimonial: 0 },
+        );
 
-                                  // ✅ Disponibilidad = Capacidad - Usadas globalmente - Usadas en pasajeros temporales
-                                  const available = {
-                                    simple: Math.max(
-                                      0,
-                                      capacity.simple -
-                                        usedGlobal.simple -
-                                        usedInCurrentPassengers.simple,
-                                    ),
-                                    doble: Math.max(
-                                      0,
-                                      capacity.doble -
-                                        usedGlobal.doble -
-                                        usedInCurrentPassengers.doble,
-                                    ),
-                                    matrimonial: Math.max(
-                                      0,
-                                      capacity.matrimonial -
-                                        usedGlobal.matrimonial -
-                                        usedInCurrentPassengers.matrimonial,
-                                    ),
-                                  };
+      const available = {
+        simple: Math.max(0, capacity.simple - usedGlobal.simple - usedInCurrentPassengers.simple),
+        doble: Math.max(0, capacity.doble - usedGlobal.doble - usedInCurrentPassengers.doble),
+        matrimonial: Math.max(0, capacity.matrimonial - usedGlobal.matrimonial - usedInCurrentPassengers.matrimonial),
+      };
 
-                                  return (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                      {/* Habitaciones Simples */}
-                                      {capacity.simple > 0 && (
-                                        <div className="bg-white rounded-lg p-3 border border-slate-200">
-                                          <label className="block text-xs font-semibold text-slate-700 mb-2">
-                                            Simples (Disponibles:{" "}
-                                            {available.simple})
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            max={available.simple}
-                                            value={
-                                              passengerData.roomSelection
-                                                ?.simple || 0
-                                            }
-                                            onChange={(e) => {
-                                              const value =
-                                                parseInt(e.target.value) || 0;
-                                              setPassengerData({
-                                                ...passengerData,
-                                                roomSelection: {
-                                                  ...passengerData.roomSelection,
-                                                  simple: Math.min(
-                                                    value,
-                                                    available.simple,
-                                                  ),
-                                                },
-                                              });
-                                            }}
-                                            disabled={available.simple === 0}
-                                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
-                                              available.simple === 0
-                                                ? "bg-slate-100 cursor-not-allowed"
-                                                : ""
-                                            }`}
-                                          />
-                                          {available.simple === 0 && (
-                                            <p className="text-xs text-red-600 mt-1 text-center font-semibold">
-                                              ¡Agotado!
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Habitaciones Simples */}
+          {capacity.simple > 0 && (
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                Simples (Disponibles: {available.simple})
+              </label>
+              <div className="flex items-center gap-2">
+                {/* Botón decrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.simple || 0;
+                    if (currentValue > 0) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          simple: currentValue - 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={!passengerData.roomSelection?.simple || passengerData.roomSelection.simple === 0}
+                  className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  −
+                </button>
 
-                                      {/* Habitaciones Dobles */}
-                                      {capacity.doble > 0 && (
-                                        <div className="bg-white rounded-lg p-3 border border-slate-200">
-                                          <label className="block text-xs font-semibold text-slate-700 mb-2">
-                                            Dobles (Disponibles:{" "}
-                                            {available.doble})
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            max={available.doble}
-                                            value={
-                                              passengerData.roomSelection
-                                                ?.doble || 0
-                                            }
-                                            onChange={(e) => {
-                                              const value =
-                                                parseInt(e.target.value) || 0;
-                                              setPassengerData({
-                                                ...passengerData,
-                                                roomSelection: {
-                                                  ...passengerData.roomSelection,
-                                                  doble: Math.min(
-                                                    value,
-                                                    available.doble,
-                                                  ),
-                                                },
-                                              });
-                                            }}
-                                            disabled={available.doble === 0}
-                                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
-                                              available.doble === 0
-                                                ? "bg-slate-100 cursor-not-allowed"
-                                                : ""
-                                            }`}
-                                          />
-                                          {available.doble === 0 && (
-                                            <p className="text-xs text-red-600 mt-1 text-center font-semibold">
-                                              ¡Agotado!
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
+                {/* Input manual */}
+                <input
+                  type="number"
+                  min="0"
+                  max={available.simple}
+                  value={passengerData.roomSelection?.simple || 0}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setPassengerData({
+                      ...passengerData,
+                      roomSelection: {
+                        ...passengerData.roomSelection,
+                        simple: Math.min(value, available.simple),
+                      },
+                    });
+                  }}
+                  disabled={available.simple === 0}
+                  className={`flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
+                    available.simple === 0 ? "bg-slate-100 cursor-not-allowed" : ""
+                  }`}
+                />
 
-                                      {/* Habitaciones Matrimoniales */}
-                                      {capacity.matrimonial > 0 && (
-                                        <div className="bg-white rounded-lg p-3 border border-slate-200">
-                                          <label className="block text-xs font-semibold text-slate-700 mb-2">
-                                            Matrimoniales (Disponibles:{" "}
-                                            {available.matrimonial})
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            max={available.matrimonial}
-                                            value={
-                                              passengerData.roomSelection
-                                                ?.matrimonial || 0
-                                            }
-                                            onChange={(e) => {
-                                              const value =
-                                                parseInt(e.target.value) || 0;
-                                              setPassengerData({
-                                                ...passengerData,
-                                                roomSelection: {
-                                                  ...passengerData.roomSelection,
-                                                  matrimonial: Math.min(
-                                                    value,
-                                                    available.matrimonial,
-                                                  ),
-                                                },
-                                              });
-                                            }}
-                                            disabled={
-                                              available.matrimonial === 0
-                                            }
-                                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
-                                              available.matrimonial === 0
-                                                ? "bg-slate-100 cursor-not-allowed"
-                                                : ""
-                                            }`}
-                                          />
-                                          {available.matrimonial === 0 && (
-                                            <p className="text-xs text-red-600 mt-1 text-center font-semibold">
-                                              ¡Agotado!
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
+                {/* Botón incrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.simple || 0;
+                    if (currentValue < available.simple) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          simple: currentValue + 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={available.simple === 0 || (passengerData.roomSelection?.simple || 0) >= available.simple}
+                  className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-green-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  +
+                </button>
+              </div>
+              {available.simple === 0 && (
+                <p className="text-xs text-red-600 mt-1 text-center font-semibold">
+                  ¡Agotado!
+                </p>
+              )}
+            </div>
+          )}
 
-                                {/* Servicios del hotel */}
-                                <div className="mt-4 pt-4 border-t border-green-200">
-                                  <p className="text-sm font-semibold text-slate-700 mb-3">
-                                    Servicios del Hotel:
-                                  </p>
-                                  <div className="grid md:grid-cols-2 gap-3">
-                                    {[
-                                      { key: "desayuno", label: "Desayuno" },
-                                      {
-                                        key: "almuerzo",
-                                        label: "Almuerzo / Comida",
-                                      },
-                                      { key: "snack", label: "Snack" },
-                                      { key: "cena", label: "Cena" },
-                                    ].map(({ key, label }) => (
-                                      <button
-                                        key={key}
-                                        onClick={() =>
-                                          setPassengerData({
-                                            ...passengerData,
-                                            hotelServices: {
-                                              ...passengerData.hotelServices,
-                                              [key]:
-                                                !passengerData.hotelServices[
-                                                  key
-                                                ],
-                                            },
-                                          })
-                                        }
-                                        className="flex items-center gap-2 p-3 border-2 border-slate-300 rounded-lg hover:border-green-500 hover:bg-white transition"
-                                      >
-                                        {passengerData.hotelServices[key] ? (
-                                          <CheckSquare className="w-5 h-5 text-green-600" />
-                                        ) : (
-                                          <Square className="w-5 h-5 text-slate-400" />
-                                        )}
-                                        <span className="text-sm font-medium text-slate-700">
-                                          {label}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+          {/* Habitaciones Dobles */}
+          {capacity.doble > 0 && (
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                Dobles (Disponibles: {available.doble})
+              </label>
+              <div className="flex items-center gap-2">
+                {/* Botón decrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.doble || 0;
+                    if (currentValue > 0) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          doble: currentValue - 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={!passengerData.roomSelection?.doble || passengerData.roomSelection.doble === 0}
+                  className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  −
+                </button>
+
+                {/* Input manual */}
+                <input
+                  type="number"
+                  min="0"
+                  max={available.doble}
+                  value={passengerData.roomSelection?.doble || 0}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setPassengerData({
+                      ...passengerData,
+                      roomSelection: {
+                        ...passengerData.roomSelection,
+                        doble: Math.min(value, available.doble),
+                      },
+                    });
+                  }}
+                  disabled={available.doble === 0}
+                  className={`flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
+                    available.doble === 0 ? "bg-slate-100 cursor-not-allowed" : ""
+                  }`}
+                />
+
+                {/* Botón incrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.doble || 0;
+                    if (currentValue < available.doble) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          doble: currentValue + 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={available.doble === 0 || (passengerData.roomSelection?.doble || 0) >= available.doble}
+                  className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-green-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  +
+                </button>
+              </div>
+              {available.doble === 0 && (
+                <p className="text-xs text-red-600 mt-1 text-center font-semibold">
+                  ¡Agotado!
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Habitaciones Matrimoniales */}
+          {capacity.matrimonial > 0 && (
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+              <label className="block text-xs font-semibold text-slate-700 mb-2">
+                Matrimoniales (Disponibles: {available.matrimonial})
+              </label>
+              <div className="flex items-center gap-2">
+                {/* Botón decrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.matrimonial || 0;
+                    if (currentValue > 0) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          matrimonial: currentValue - 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={!passengerData.roomSelection?.matrimonial || passengerData.roomSelection.matrimonial === 0}
+                  className="w-10 h-10 flex items-center justify-center bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-red-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  −
+                </button>
+
+                {/* Input manual */}
+                <input
+                  type="number"
+                  min="0"
+                  max={available.matrimonial}
+                  value={passengerData.roomSelection?.matrimonial || 0}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setPassengerData({
+                      ...passengerData,
+                      roomSelection: {
+                        ...passengerData.roomSelection,
+                        matrimonial: Math.min(value, available.matrimonial),
+                      },
+                    });
+                  }}
+                  disabled={available.matrimonial === 0}
+                  className={`flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center font-semibold ${
+                    available.matrimonial === 0 ? "bg-slate-100 cursor-not-allowed" : ""
+                  }`}
+                />
+
+                {/* Botón incrementar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentValue = passengerData.roomSelection?.matrimonial || 0;
+                    if (currentValue < available.matrimonial) {
+                      setPassengerData({
+                        ...passengerData,
+                        roomSelection: {
+                          ...passengerData.roomSelection,
+                          matrimonial: currentValue + 1,
+                        },
+                      });
+                    }
+                  }}
+                  disabled={available.matrimonial === 0 || (passengerData.roomSelection?.matrimonial || 0) >= available.matrimonial}
+                  className="w-10 h-10 flex items-center justify-center bg-green-100 hover:bg-green-200 disabled:bg-slate-100 disabled:cursor-not-allowed text-green-700 disabled:text-slate-400 rounded-lg font-bold text-lg transition"
+                >
+                  +
+                </button>
+              </div>
+              {available.matrimonial === 0 && (
+                <p className="text-xs text-red-600 mt-1 text-center font-semibold">
+                  ¡Agotado!
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    })()}
+
+    {/* Servicios del hotel */}
+    <div className="mt-4 pt-4 border-t border-green-200">
+      <p className="text-sm font-semibold text-slate-700 mb-3">
+        Servicios del Hotel:
+      </p>
+      <div className="grid md:grid-cols-2 gap-3">
+        {[
+          { key: "desayuno", label: "Desayuno" },
+          { key: "almuerzo", label: "Almuerzo / Comida" },
+          { key: "snack", label: "Snack" },
+          { key: "cena", label: "Cena" },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() =>
+              setPassengerData({
+                ...passengerData,
+                hotelServices: {
+                  ...passengerData.hotelServices,
+                  [key]: !passengerData.hotelServices[key],
+                },
+              })
+            }
+            className="flex items-center gap-2 p-3 border-2 border-slate-300 rounded-lg hover:border-green-500 hover:bg-white transition"
+          >
+            {passengerData.hotelServices[key] ? (
+              <CheckSquare className="w-5 h-5 text-green-600" />
+            ) : (
+              <Square className="w-5 h-5 text-slate-400" />
+            )}
+            <span className="text-sm font-medium text-slate-700">
+              {label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
                           </div>
                         )}
 
