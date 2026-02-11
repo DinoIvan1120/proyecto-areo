@@ -3001,21 +3001,21 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
                 role: "airportLeader",
                 color: "red",
                 icon: Plane,
-                title: "Líder SAASA",
+                title: "Registro de vuelo",
                 desc: "Habilita recursos del día",
               },
               {
                 role: "agent",
                 color: "green",
                 icon: Users,
-                title: "Agente SAASA",
+                title: "Registro de compensación",
                 desc: "Registra pasajeros y servicios",
               },
               {
                 role: "airline",
                 color: "purple",
                 icon: Building2,
-                title: "Línea Aérea",
+                title: "Gestión de reportes",
                 desc: "Visualiza y exporta",
               },
               {
@@ -4132,9 +4132,9 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
 
   if (currentView === "dashboard") {
     const config = {
-      airportLeader: { color: "red", name: "Líder Aeroportuario" },
-      agent: { color: "green", name: "Agente" },
-      airline: { color: "purple", name: "Línea Aérea" },
+      airportLeader: { color: "red", name: "Registro de vuelo" },
+      agent: { color: "green", name: "Registro de compensación" },
+      airline: { color: "purple", name: "Gestión de reportes" },
       admin: { color: "orange", name: "Administrador" },
     }[userRole];
 
