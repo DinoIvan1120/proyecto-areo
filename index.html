@@ -193,6 +193,8 @@ function AirportApp() {
   const [pdfCorrelativo, setPdfCorrelativo] = useState(100702);
   const [editingCompanyId, setEditingCompanyId] = useState(null);
 
+  
+
   const [usedRooms, setUsedRooms] = useState({});
 
   // NUEVO: Estados para la vista de detalle
@@ -200,6 +202,8 @@ function AirportApp() {
   const [isEditingVoucher, setIsEditingVoucher] = useState(false);
   const [editedVoucherData, setEditedVoucherData] = useState(null);
   const [hotelCapacities, setHotelCapacities] = useState({});
+
+  const [hasBeenSaved, setHasBeenSaved] = useState(false);
   
   // AGREGAR estos nuevos estados al inicio (línea ~30 aproximadamente)
   const [multiplePassengers, setMultiplePassengers] = useState([]);
@@ -224,6 +228,68 @@ const [restaurantServices, setRestaurantServices] = useState({
   almuerzo: false,
   cena: false
 });
+
+// ✅ NUEVO: Vuelos afectados SOLO para demostración en admin (independiente)
+const [affectedFlightsDemo, setAffectedFlightsDemo] = useState([
+  {
+    id: 1,
+    flightNumber: "PU302",
+    airline: "Plus Ultra",
+    origin: "MAD",
+    destination: "LIM",
+    date: "2026-02-06",
+    time: "10:06",
+    status: "programado",
+    notes: "",
+  },
+  {
+    id: 2,
+    flightNumber: "PU401",
+    airline: "Plus Ultra",
+    origin: "LIM",
+    destination: "MAD",
+    date: "2026-02-07",
+    time: "14:30",
+    status: "programado",
+    notes: "",
+  },
+  {
+    id: 3,
+    flightNumber: "PU105",
+    airline: "Plus Ultra",
+    origin: "MAD",
+    destination: "SCL",
+    date: "2026-02-06",
+    time: "08:45",
+    status: "programado",
+    notes: "",
+  },
+  {
+    id: 4,
+    flightNumber: "PU206",
+    airline: "Plus Ultra",
+    origin: "BOG",
+    destination: "MAD",
+    date: "2026-02-08",
+    time: "16:20",
+    status: "programado",
+    notes: "",
+  },
+  {
+    id: 5,
+    flightNumber: "PU550",
+    airline: "Plus Ultra",
+    origin: "MAD",
+    destination: "CCS",
+    date: "2026-02-09",
+    time: "11:15",
+    status: "programado",
+    notes: "",
+  }
+]);
+
+const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+const [uploadSuccess, setUploadSuccess] = useState(false);
 
 // ✅✅✅ AGREGAR ESTE ESTADO AL INICIO DEL COMPONENTE (línea ~80)
 const [itinerarioVuelos] = useState([
@@ -2485,6 +2551,7 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
 
       setIsSaving(false);
       setSaveSuccess(true);
+      setHasBeenSaved(true); // ✅ NUEVO: Marcar como guardado permanentemente
       setTimeout(() => setSaveSuccess(false), 3000);
     }, 1500);
   };
@@ -4242,6 +4309,8 @@ Verificación: PLUSULTRA-${voucherData.correlativo}-${Date.now()}`;
         </div>
       </div>
 
+      
+
       {/* ✅ COMBOBOX DE SELECCIÓN DE VUELO */}
       <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-5">
         <label className="block text-sm font-semibold text-red-800 mb-3">
@@ -4887,24 +4956,33 @@ HABILITAR RECURSOS DEL DÍA
                     <button
                       onClick={handleSaveAllData}
                       disabled={isSaving}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-4 rounded-lg transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                      className={`w-full font-bold py-4 rounded-lg transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl ${
+      hasBeenSaved 
+        ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+        : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-400 text-white"
+    }`}
                     >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="animate-spin" size={24} />
-                          Guardando Configuración...
-                        </>
-                      ) : saveSuccess ? (
-                        <>
-                          <Check size={24} />
-                          ¡Configuración Guardada!
-                        </>
-                      ) : (
-                        <>
-                          <Check size={24} />
-                          Guardar Información de Vuelo
-                        </>
-                      )}
+                       {isSaving ? (
+      <>
+        <Loader2 className="animate-spin" size={24} />
+        {hasBeenSaved ? "Actualizando..." : "Guardando Configuración..."}
+      </>
+    ) : saveSuccess ? (
+      <>
+        <Check size={24} />
+        ¡Actualizado!
+      </>
+    ) : hasBeenSaved ? (
+      <>
+        <Edit size={24} />
+        Editar Información
+      </>
+    ) : (
+      <>
+        <Check size={24} />
+        Guardar Información de Vuelo
+      </>
+    )}
                     </button>
 
                     {/* Mensaje de éxito */}
@@ -6765,6 +6843,30 @@ HABILITAR RECURSOS DEL DÍA
                             </div>
                           </div>
                         </button>
+
+                        {/* ✅ NUEVA: Tarjeta Gestión de Vuelos Afectados */}
+  <button
+    onClick={() => setAdminView("flights")}
+    className="group bg-gradient-to-br from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 border-2 border-red-200 hover:border-red-400 rounded-xl p-8 transition-all duration-300 hover:shadow-xl"
+  >
+    <div className="flex flex-col items-center text-center">
+      <div className="bg-red-600 group-hover:bg-red-700 w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors">
+        <AlertTriangle className="w-8 h-8 text-white" />
+      </div>
+      <h3 className="text-xl font-bold text-slate-800 mb-2">
+        Gestión de Vuelos
+      </h3>
+      <p className="text-slate-600 mb-4">
+        Carga vuelos desde Excel
+      </p>
+      <div className="flex items-center gap-2 text-red-600 font-semibold">
+        <span>Acceder</span>
+        <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+      </div>
+    </div>
+  </button>
+
+                      
                       </div>
                     </div>
 
@@ -6802,6 +6904,16 @@ HABILITAR RECURSOS DEL DÍA
                           {registeredVouchers.length}
                         </p>
                       </div>
+
+                      {/* ✅ NUEVO */}
+  <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+    <p className="text-slate-600 text-sm font-medium mb-1">
+      Vuelos Cargados
+    </p>
+    <p className="text-2xl font-bold text-slate-800">
+      {affectedFlightsDemo.length}
+    </p>
+  </div>
                     </div>
                   </div>
                 )}
@@ -8714,6 +8826,207 @@ HABILITAR RECURSOS DEL DÍA
         </div>
       </div>
     )}
+
+{/* ========================================
+        GESTIÓN DE VUELOS - SOLO DEMOSTRACIÓN
+        ======================================== */}
+{adminView === "flights" && (
+  <div className="space-y-6">
+    {/* Botón volver */}
+    <button
+      onClick={() => setAdminView("dashboard")}
+      className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg transition"
+    >
+      <ArrowLeft size={20} />
+      Volver al Dashboard
+    </button>
+
+    {/* Banner informativo */}
+    <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-xl p-6 shadow-lg">
+      <div className="flex items-start gap-4">
+        <Upload className="w-12 h-12 flex-shrink-0" />
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Gestión de Vuelos del Itinerario</h2>
+          <p className="text-white/90">
+            Aquí se cargan los vuelos desde archivos Excel. Los vuelos cargados estarán disponibles 
+            para que el Líder Aeroportuario los seleccione y registre.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Simulación de carga de Excel */}
+    <div className="bg-white rounded-xl shadow-lg p-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center">
+          <FileText className="w-6 h-6 text-red-600" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Cargar Vuelos desde Excel
+          </h2>
+          <p className="text-slate-600">
+            Sube archivos Excel con información de vuelos
+          </p>
+        </div>
+      </div>
+
+      {/* Área de carga simulada */}
+      <div className="border-2 border-dashed border-red-300 rounded-xl p-8 text-center bg-red-50/50 hover:border-red-400 transition">
+        <input
+          type="file"
+          accept=".xlsx,.xls"
+          id="excel-upload-demo"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            setIsUploadingExcel(true);
+            
+            // Simulación de carga
+            setTimeout(() => {
+              setIsUploadingExcel(false);
+              setUploadSuccess(true);
+              setTimeout(() => setUploadSuccess(false), 3000);
+              e.target.value = '';
+            }, 1500);
+          }}
+          className="hidden"
+        />
+        <label
+          htmlFor="excel-upload-demo"
+          className="cursor-pointer flex flex-col items-center"
+        >
+          {isUploadingExcel ? (
+            <>
+              <Loader2 className="w-16 h-16 text-red-600 mb-4 animate-spin" />
+              <p className="text-lg font-semibold text-slate-800">
+                Procesando archivo Excel...
+              </p>
+            </>
+          ) : (
+            <>
+              <Upload className="w-16 h-16 text-red-600 mb-4" />
+              <p className="text-lg font-semibold text-slate-800 mb-2">
+                Haz clic para subir archivo Excel
+              </p>
+              <p className="text-sm text-slate-600">
+                Formatos: .xlsx, .xls
+              </p>
+            </>
+          )}
+        </label>
+      </div>
+
+      {/* Mensaje de éxito */}
+      {uploadSuccess && (
+        <div className="mt-4 bg-green-50 border-2 border-green-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Check className="text-green-600 w-6 h-6" />
+            <div>
+              <p className="text-green-800 font-bold">
+                ¡Archivo cargado exitosamente!
+              </p>
+              <p className="text-green-700 text-sm">
+                Los vuelos están disponibles para el Líder Aeroportuario
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Lista de vuelos cargados */}
+    <div className="bg-white rounded-xl shadow-lg p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Plane className="w-6 h-6 text-red-600" />
+            Vuelos Cargados ({affectedFlightsDemo.length})
+          </h2>
+          <p className="text-slate-600 text-sm mt-1">
+            Estos vuelos están disponibles para el Líder Aeroportuario
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-red-100">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                #
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                Vuelo
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                Aerolínea
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                Ruta
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                Fecha
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-red-900">
+                Hora
+              </th>
+             
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {affectedFlightsDemo.map((flight, index) => (
+              <tr key={flight.id} className="hover:bg-red-50 transition">
+                <td className="px-4 py-3 text-sm text-slate-600 font-semibold">
+                  {index + 1}
+                </td>
+                <td className="px-4 py-3 text-sm font-mono font-bold text-red-700">
+                  {flight.flightNumber}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-600">
+                  {flight.airline}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{flight.origin}</span>
+                    <Plane size={14} className="text-red-600" />
+                    <span className="font-semibold">{flight.destination}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm font-mono text-slate-600">
+                  {flight.date}
+                </td>
+                <td className="px-4 py-3 text-sm font-mono text-slate-600">
+                  {flight.time}
+                </td>
+              
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Nota informativa */}
+      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+          <div>
+            <p className="text-blue-900 font-semibold text-sm">
+              Información para la demostración
+            </p>
+            <p className="text-blue-800 text-xs mt-1">
+              Estos vuelos aparecerán en el selector del Líder Aeroportuario. 
+              El líder puede modificar el estado (programado, reprogramado, cancelado, demorado) 
+              y agregar notas según la situación de cada vuelo.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
               </div>
             )}
           </div>
